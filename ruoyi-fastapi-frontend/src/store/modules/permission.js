@@ -7,6 +7,8 @@ import InnerLink from '@/layout/components/InnerLink'
 
 // 匹配views里面所有的.vue文件
 const modules = import.meta.glob('./../../views/**/*.vue')
+// 匹配modules里面所有的.vue文件（支持模块化开发）
+const moduleViews = import.meta.glob('./../../modules/**/*.vue')
 
 const usePermissionStore = defineStore(
   'permission',
@@ -115,10 +117,33 @@ export function filterDynamicRoutes(routes) {
 
 export const loadView = (view) => {
   let res;
+  // 先在views目录中查找
   for (const path in modules) {
     const dir = path.split('views/')[1].split('.vue')[0];
     if (dir === view) {
       res = () => modules[path]();
+    }
+  }
+  // 如果views中没找到，在modules目录中查找
+  if (!res) {
+    for (const path in moduleViews) {
+      // glob返回的路径格式可能是: ./../../modules/device/views/index.vue
+      // 需要提取 modules/ 后面到 .vue 前面的部分
+      let dir = path;
+      // 移除 .vue 后缀
+      if (dir.endsWith('.vue')) {
+        dir = dir.slice(0, -4);
+      }
+      // 提取 modules/ 后面的部分
+      const modulesIndex = dir.indexOf('modules/');
+      if (modulesIndex !== -1) {
+        dir = dir.substring(modulesIndex + 8); // 8 = 'modules/'.length
+      }
+      // 比较
+      if (dir === view) {
+        res = () => moduleViews[path]();
+        break;
+      }
     }
   }
   return res
